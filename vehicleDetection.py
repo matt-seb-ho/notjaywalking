@@ -34,15 +34,17 @@ kernel = np.ones((3,3), np.uint8)
 dilated = cv2.dilate(thresh, kernel, iterations = 1)
 
 contours, hierarchy = cv2.findContours(thresh.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+
+dmy = col_images[13].copy()
 valid_cntrs = []
 for i, cntr in enumerate(contours):
 	x, y, w, h = cv2.boundingRect(cntr)
 	if cv2.contourArea(cntr) >= 25:
 		valid_cntrs.append(cntr)
+		cv2.rectangle(dmy, (x, y), (x + w, y + h), color = (0, 255, 0), thickness = 1)
 
-dmy = col_images[13].copy()
 
-cv2.drawContours(dmy, valid_cntrs, -1, (127, 200, 0), 2)
+#cv2.drawContours(dmy, valid_cntrs, -1, (127, 200, 0), 2)
 plt.imshow(dmy)
 
 #plt.imshow(dilated, cmap = 'gray')
