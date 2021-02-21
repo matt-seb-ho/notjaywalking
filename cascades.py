@@ -6,6 +6,7 @@ from os.path import isfile, join
 import matplotlib.pyplot as plt
 from scipy.spatial import distance as dist
 from collections import OrderedDict
+import copy
 
 car_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'cars.xml')
 
@@ -13,6 +14,8 @@ class CentroidTracker():
 	def __init__(self, maxDisappeared = 50):
 		self.nextObjectID = 0
 		self.objects = OrderedDict()
+		#self.prevFrameObjects = OrderedDict()
+		self.deltaX = []
 		self.disappeared = OrderedDict()
 		self.maxDisappeared = maxDisappeared
 	def register(self, centroid):
@@ -53,6 +56,9 @@ class CentroidTracker():
 				self.register(inputCentroids[i])
 
 		else:
+			# clear deltaX
+			deltaX = []
+
 			# get objectIDs and their centroids
 			objectIDs = list(self.objects.keys())
 			objectCentroids = list(self.objects.values())
@@ -73,6 +79,11 @@ class CentroidTracker():
 				#found an input centroid that has the smallest distance to
 				#an unmatched previous centroid
 				objectID = objectIDs[row]
+
+				#access centroid via objects[id]
+				self.deltaX.append(inputCentroids[col][0] - self.objects[objectID][0])
+				
+				#set object to its successor HERE
 				self.objects[objectID] = inputCentroids[col]
 				self.disappeared[objectID] = 0
 
@@ -112,26 +123,44 @@ for im in col_frames:
 frames = [13, 17]
 f, axarr = plt.subplots(len(frames), 1)
 
-for i in range(len(frames)):
-	frame = col_images[frames[i]]
-	cars = car_cascade.detectMultiScale(frame, 1.05, 2)
-	rects = []
-	for (x, y, w, h) in cars:
-		rect = (x, y, x + w, y + h)
-		cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 1)
-		rects.append(rect)
-	#print(rects)
-	objects = ct.update(rects)
-	#print(len(objects))
-	for (objectID, centroid) in objects.items():
-		cv2.putText(frame, "ID: " + str(objectID) , (centroid[0] - 10, centroid[1] - 10), cv2.FONT_HERSHEY_SIMPLEX,
-			0.5, (0, 255, 0), 2)
-		#cv2.circle(frame
-	cv2.imshow("Frame", frame)
-	key = cv2.waitKey(1)
-	
-	
+def detect_motion(direction, frames):
+	idirection = 1
+	if direction == "left":
+		idirection = -1
+		
+	for i in range(len(frames)):
+		frame = col_images[frames[i]]
+		cars = car_cascade.detectMultiScale(frame, 1.05, 2)
+		rects = []
+		for (x, y, w, h) in cars:
+			rect = (x, y, x + w, y + h)
+			cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 1)
+			rects.append(rect)
+		#print(rects)
+		objects = ct.update(rects)
+		if i != 0:
+			for dx in ct.deltaX:
+				if idirection * dx > 0:
+					print(direction + "wards motion")
+					break
+		
+		#print(len(objects))
+		for (objectID, centroid) in objects.items():
+			cv2.putText(frame, "ID: " + str(objectID) , (centroid[0] - 10, centroid[1] - 10), 
+				cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+			#cv2.circle(frame
+		#cv2.imshow("Frame: " + str(frames[i]), frame)
+		axarr[i].imshow(frame)
+		axarr[i].set_title('frame: ' + str(frames[i]))
+	plt.imshow(frame)
+	f.tight_layout()
+	plt.show()
 
+	
+	
+detect_motion("left", frames)
+
+#key = cv2.waitKey(1)
 '''
 for i in range(len(frames)):
 	frame = col_images[frames[i]]
@@ -149,9 +178,6 @@ for (x, y, w, h) in cars:
 	cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 2)
 '''
 
-plt.imshow(frame)
-f.tight_layout()
-plt.show()
 #cv2.imshow("Result", frame)
 #cv2.waitKey(1)
 
