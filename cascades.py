@@ -48,7 +48,7 @@ class CentroidTracker():
 			cY = int((startY + endY) * 0.5)
 			inputCentroids[i] = (cX, cY)
 			#print("inputCentroids: ")
-			print(inputCentroids)
+			#print(inputCentroids)
 
 		#if not currently tracking, register all centroids
 		if len(self.objects) == 0:
@@ -120,18 +120,18 @@ for im in col_frames:
 	img = cv2.imread('frames/' + im)
 	col_images.append(img)
 
-frames = [13, 14]
-f, axarr = plt.subplots(len(frames), 1)
+frame_nums = [100, 105]
+f, axarr = plt.subplots(len(frame_nums), 1)
 
-def detect_motion(direction, frames, showBoxes):
+def detect_motion(frames, direction, frame_nums, showBoxes):
 	idirection = 1
 	if direction == "left":
 		idirection = -1
 		
 	motion = False
 
-	for i in range(len(frames)):
-		frame = col_images[frames[i]]
+	for i in range(len(frame_nums)):
+		frame = frames[frame_nums[i]]
 		cars = car_cascade.detectMultiScale(frame, 1.05, 2)
 		rects = []
 		for (x, y, w, h) in cars:
@@ -154,7 +154,7 @@ def detect_motion(direction, frames, showBoxes):
 			#cv2.circle(frame
 		#cv2.imshow("Frame: " + str(frames[i]), frame)
 		axarr[i].imshow(frame)
-		axarr[i].set_title('frame: ' + str(frames[i]))
+		axarr[i].set_title('frame: ' + str(frame_nums[i]))
 	plt.imshow(frame)
 	f.tight_layout()
 	if showBoxes:
@@ -162,10 +162,27 @@ def detect_motion(direction, frames, showBoxes):
 
 	return motion
 
-	
-	
-detect_motion("left", frames, 1)
+#detect_motion("left", frames, 0)
 
+def detect_motion2(filename, direction, frames, showBoxes):
+	col_images = []
+
+	vidcap = cv2.VideoCapture(filename)
+	success, frame = vidcap.read()
+	count = 0
+	while success:
+		col_images.append(frame)
+		success, frame = vidcap.read()
+	'''
+	plt.imshow(col_images[13])
+	plt.show()
+	'''
+	detect_motion(col_images, direction, frames, showBoxes)	
+	
+if detect_motion2("cars.mp4", "right", frame_nums, 1):
+	print("motion")
+else:
+	print("no motion")
 #key = cv2.waitKey(1)
 '''
 for i in range(len(frames)):
