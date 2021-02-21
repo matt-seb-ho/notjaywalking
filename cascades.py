@@ -120,14 +120,16 @@ for im in col_frames:
 	img = cv2.imread('frames/' + im)
 	col_images.append(img)
 
-frames = [13, 17]
+frames = [13, 14]
 f, axarr = plt.subplots(len(frames), 1)
 
-def detect_motion(direction, frames):
+def detect_motion(direction, frames, showBoxes):
 	idirection = 1
 	if direction == "left":
 		idirection = -1
 		
+	motion = False
+
 	for i in range(len(frames)):
 		frame = col_images[frames[i]]
 		cars = car_cascade.detectMultiScale(frame, 1.05, 2)
@@ -142,6 +144,7 @@ def detect_motion(direction, frames):
 			for dx in ct.deltaX:
 				if idirection * dx > 0:
 					print(direction + "wards motion")
+					motion = True
 					break
 		
 		#print(len(objects))
@@ -154,11 +157,14 @@ def detect_motion(direction, frames):
 		axarr[i].set_title('frame: ' + str(frames[i]))
 	plt.imshow(frame)
 	f.tight_layout()
-	plt.show()
+	if showBoxes:
+		plt.show()
+
+	return motion
 
 	
 	
-detect_motion("left", frames)
+detect_motion("left", frames, 1)
 
 #key = cv2.waitKey(1)
 '''
