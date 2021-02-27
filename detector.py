@@ -139,7 +139,7 @@ net.setPreferableBackend(cv2.dnn.DNN_BACKEND_OPENCV)
 ln = net.getLayerNames()
 ln = [ln[i[0] - 1] for i in net.getUnconnectedOutLayers()]
 
-def ydetect_motion_frames(frames, direction, frame_nums, showBoxes, conf):
+def ydetect_motion_frames(frames, direction, frame_nums, showBoxes, conf, nms_thresh, stop_early):
 	f, axarr = plt.subplots(len(frame_nums), 1)
 	
 
@@ -173,7 +173,7 @@ def ydetect_motion_frames(frames, direction, frame_nums, showBoxes, conf):
 				scores = detection[5:]
 				classID = np.argmax(scores)
 				confidence = scores[classID]
-				if is_vehicle(classes[classID]) and confidence > 0.5:
+				if is_vehicle(classes[classID]) and confidence > conf:
 					# YOLO returns centerX, centerY, width, height
 					box = detection[:4] * np.array([W, H, W, H])
 					(centerX, centerY, width, height) = box.astype("int")
@@ -187,7 +187,7 @@ def ydetect_motion_frames(frames, direction, frame_nums, showBoxes, conf):
 				
 		 
 		rects = []
-		indices = cv2.dnn.NMSBoxes(boxes, confidences, 0.5, 0.3)
+		indices = cv2.dnn.NMSBoxes(boxes, confidences, conf, nms_thresh)
 		if(len(indices) > 0):
 			for j in indices.flatten():
 				(x, y) = (boxes[j][0], boxes[j][1])
@@ -195,7 +195,7 @@ def ydetect_motion_frames(frames, direction, frame_nums, showBoxes, conf):
 				cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 1)
 				rects.append([x, y, x + w, y + h])
 
-		print("len rects: ", len(rects))
+		# print("len rects: ", len(rects))
 		'''
 		rects = []
 		for (x, y, w, h) in cars:
@@ -212,21 +212,25 @@ def ydetect_motion_frames(frames, direction, frame_nums, showBoxes, conf):
 				if idirection * dx > 0:
 					print(direction + "wards motion")
 					motion = True
+					if stop_early:
+						return True
 					break
 		
 		#print(len(objects))
 		for (objectID, centroid) in objects.items():
-			print("objectID: ", objectID)
+			# print("objectID: ", objectID)
 			cv2.putText(frame, "ID: " + str(objectID) , (centroid[0] - 10, centroid[1] - 10), 
 				cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 			#cv2.circle(frame
-		#cv2.imshow("Frame: " + str(frames[i]), frame)
+		if showBoxes:
+			cv2.imshow("Frame: " + str(frames[i]), frame)
+			cv2.waitKey(0)
 		axarr[i].imshow(frame)
 		axarr[i].set_title('frame: ' + str(frame_nums[i]))
-
 	plt.imshow(frame)
 	f.tight_layout()
 	if showBoxes:
+		cv2.destroyAllWindows()
 		plt.show()
 
 	return motion
@@ -262,6 +266,7 @@ def cdetect_motion_frames(frames, direction, frame_nums, showBoxes):
 				cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 			#cv2.circle(frame
 		#cv2.imshow("Frame: " + str(frames[i]), frame)
+		#cv2.waitKey(0)
 		axarr[i].imshow(frame)
 		axarr[i].set_title('frame: ' + str(frame_nums[i]))
 	plt.imshow(frame)
@@ -273,7 +278,9 @@ def cdetect_motion_frames(frames, direction, frame_nums, showBoxes):
 
 #detect_motion(col_images, "left", frame_nums, 0)
 
-def detect_motion_video(filename, direction, frame_nums, showBoxes, conf, detector):
+# ydetect signature: (frames, direction, frame_nums, showBoxes, conf, nms_thresh, stop_early)
+
+def detect_motion_video(filename, direction, frame_nums, showBoxes, conf, nms_thresh, detector, stop_early):
 	col_images = []
 
 	vidcap = cv2.VideoCapture(filename)
@@ -283,6 +290,7 @@ def detect_motion_video(filename, direction, frame_nums, showBoxes, conf, detect
 		col_images.append(frame)
 		success, frame = vidcap.read()
 
+	# print("number of frames: ", len(col_images))
 	'''
 	plt.imshow(col_images[13])
 	plt.show()
@@ -290,37 +298,25 @@ def detect_motion_video(filename, direction, frame_nums, showBoxes, conf, detect
 	if(detector == "cascades"):
 		cdetect_motion_frames(col_images, direction, frame_nums, showBoxes)	
 	elif(detector == "yolo"):
-		ydetect_motion_frames(col_images, direction, frame_nums, showBoxes, conf)	
+		ydetect_motion_frames(col_images, direction, frame_nums, showBoxes, conf, nms_thresh, stop_early)	
 	else:
 		print("not a valid model")
+
+def checkForMovingCars(filename, direction, framerate = 2, conf = 0.5, nms_thresh = 0.3):
+	col_images = []
+
+	vidcap = cv2.VideoCapture(filename)
+	success, frame = vidcap.read()
+	count = 0
+	while success:
+		col_images.append(frame)
+		success, frame = vidcap.read()
+
+	return ydetect_motion_frames(col_images, direction, range(0, len(col_images) - 1, framerate), 0, conf, nms_thresh, 1)	
 	
-frame_nums = [100, 105]
+	
+frame_nums = [100, 105, 107, 109]
 
-
-motion_between_frames = detect_motion_video("cars.mp4", "right", frame_nums, 1, 0.5, "yolo")
-
-if motion_between_frames:
-	print("motion")
-else:
-	print("no motion")
-#key = cv2.waitKey(1)
-'''
-for i in range(len(frames)):
-	frame = col_images[frames[i]]
-	cars = car_cascade.detectMultiScale(frame, 1.05, 2)
-	for (x, y, w, h) in cars:
-		cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 2)
-	axarr[i].imshow(frame)
-	axarr[i].set_title('frame: ' + str(frames[i]))
-'''
-
-'''
-frame = col_images[frame1]
-cars = car_cascade.detectMultiScale(frame, 1.05, 2)
-for (x, y, w, h) in cars:
-	cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 2)
-'''
-
-#cv2.imshow("Result", frame)
-#cv2.waitKey(1)
-
+# detect_motion_video takes (filename, direction, frame_numbers, showBoxes, confidence threshold, NMS threshold, which detector, stop_early)
+motion_between_frames = detect_motion_video("cars.mp4", "right", frame_nums, 1, 0.5, 0.3, "yolo", 0)
+# checkForMovingCars("cars.mp4", "right")
